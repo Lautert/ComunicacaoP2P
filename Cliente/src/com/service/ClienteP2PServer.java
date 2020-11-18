@@ -29,9 +29,9 @@ public class ClienteP2PServer {
             this.socket = new Socket("localhost", port);
             this.output = new ObjectOutputStream(socket.getOutputStream());
         } catch (UnknownHostException ex) {
-            Logger.getLogger(ClienteP2PServer.class.getName()).log(Level.SEVERE, null, ex);
+//            Logger.getLogger(ClienteP2PServer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
-            Logger.getLogger(ClienteP2PServer.class.getName()).log(Level.SEVERE, null, ex);
+//            Logger.getLogger(ClienteP2PServer.class.getName()).log(Level.SEVERE, null, ex);
         }
         return socket;
     }

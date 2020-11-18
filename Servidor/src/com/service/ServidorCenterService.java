@@ -29,9 +29,11 @@ public class ServidorCenterService {
 
     public ServidorCenterService() {
         try {
+            // cria um servidor socket
             serverSocket = new ServerSocket(Constantes.SERVER_PORT);
             System.out.println("Servidor Center on!");
 
+            // loop que envia cada requisição para uma thread separa, gerida pela escuta
             while (true) {
                 socket = serverSocket.accept();
                 new Thread(new ListenerSocket(socket)).start();
@@ -52,7 +54,8 @@ public class ServidorCenterService {
                 this.output = new ObjectOutputStream(socket.getOutputStream());
                 this.input = new ObjectInputStream (socket.getInputStream());
             } catch (IOException ex) {
-                Logger.getLogger(ServidorCenterService.class.getName()).log(Level.SEVERE, null, ex);
+                // Logger.getLogger(ServidorCenterService.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("com.service.ServidorCenterService.ListenerSocket.<init>()");
             }
         }
 
@@ -60,61 +63,74 @@ public class ServidorCenterService {
         public void run() {
             ServerCenterMessage message = null;
             try {
+                // RECEBE AS MENSAGENS DO CLIENTE
+                
                 while ((message = (ServerCenterMessage) input.readObject()) != null) {
                     ActionCenter action = message.getAction();
+                    System.out.println("\\/----------------------------------------\\/");
+
+                    System.out.println(output);
+                    System.out.println(message);
 
                     if (action.equals(ActionCenter.CONNECT)) {
                         connect(message, output);
+                        // informa todos os presentes da lista de clientes mudou
+                        sendOnlines();
                     } else if (action.equals(ActionCenter.DISCONNECT)) {
                         disconnect(message, output);
-                    } 
+                        // informa todos os presentes da lista de clientes mudou
+                        sendOnlines();
+                    }
+                    System.out.println("/\\----------------------------------------/\\");
                 }
             } catch (IOException ex) {
                 sendOnlines();
 //                System.out.println(message.getName()+"["+message.getPort()+"]"+" deixou o chat!");
                 disconnect(message, output);
             } catch (ClassNotFoundException ex) {
-                Logger.getLogger(ServidorCenterService.class.getName()).log(Level.SEVERE, null, ex);
+                sendOnlines();
+//                Logger.getLogger(ServidorCenterService.class.getName()).log(Level.SEVERE, null, ex);
+                disconnect(message, output);
             }
         }
     }
     
     private void connect(ServerCenterMessage message, ObjectOutputStream output){
-        mapOnlines.put(message.getName()+"["+message.getPort()+"]" , output);
-        serversOpens.put(message.getName()+"["+message.getPort()+"]", message.getPort());
-        System.out.println("Novo Usuario Conectado : "+message.getName()+"["+message.getPort()+"]");
+        String nome = message.getName()+"["+message.getPort()+"]";
+        
+        mapOnlines.put(nome, output);
+        serversOpens.put(nome, message.getPort());
+        System.out.println("Novo Usuario Conectado : "+nome);
+        // envia mensagem de volta com a mesma action de CONNECTION para informar que foi conectado
         send(message, output);
-        sendOnlines();
     }
     
     private void disconnect(ServerCenterMessage message, ObjectOutputStream output) {
-        mapOnlines.remove(message.getName()+"["+message.getPort()+"]");
-        serversOpens.remove(message.getName()+"["+message.getPort()+"]");
-        System.out.println("Usuario Desconectado : "+message.getName()+"["+message.getPort()+"]");
-        sendOnlines();
+        String nome = message.getName()+"["+message.getPort()+"]";
+        
+        mapOnlines.remove(nome);
+        serversOpens.remove(nome);
+        System.out.println("Usuario Desconectado : "+nome);
     }
 
     private void send(ServerCenterMessage message, ObjectOutputStream output) {
         try {
             output.writeObject(message);
         } catch (IOException ex) {
-            Logger.getLogger(ServidorCenterService.class.getName()).log(Level.SEVERE, null, ex);
+//            Logger.getLogger(ServidorCenterService.class.getName()).log(Level.SEVERE, null, ex);
+            disconnect(message, output);
         }
     }
 
     private void sendOnlines() {
-        // CONVERTE O MAP DE USUARIO ONLINE EM UM SET DE NOMES
-        Set<String> setNames = new HashSet<String>();
-        for (Map.Entry<String, ObjectOutputStream> kv : mapOnlines.entrySet()) {
-            setNames.add(kv.getKey());
-        }
-
-        ServerCenterMessage message = new ServerCenterMessage();
-        message.setAction(ActionCenter.USERS_ONLINE);
-        message.setSetOnlines(serversOpens);
-
         // ENVIA A LISTA DE NOMES PARA TODOS USUARIOS
         for (Map.Entry<String, ObjectOutputStream> kv : mapOnlines.entrySet()) {
+
+            ServerCenterMessage message = new ServerCenterMessage();
+            message.setAction(ActionCenter.USERS_ONLINE);
+            message.setSetOnlines(serversOpens);
+            System.out.println(serversOpens);
+            System.out.println(kv.getValue());
             this.send(message, kv.getValue());
         }
     }
